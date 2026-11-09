@@ -1,4 +1,5 @@
 import tkinter as tk
+import re
 
 #main GUI code
 root = tk.Tk()
@@ -28,41 +29,51 @@ def infix_to_postfix(infix):
     stack = []
     postfix = []
 
-    for char in infix.replace(" ", ""):
-        if char.isalnum():
-            postfix.append(char)
-        elif char == '(':
-            stack.append(char)
-        elif char == ')':
+    tokens = re.findall(r'\d+\.\d+|\d+|[+\-*/()]', infix.replace(" ", ""))
+
+    for token in tokens:
+        if token.replace('.', '', 1).isdigit():
+            postfix.append(token)
+        elif token == '(':
+            stack.append(token)
+        elif token == ')':
             while stack and stack[-1] != '(':
                 postfix.append(stack.pop())
             stack.pop()
         else:
-            while stack and stack[-1] != '(' and precedence.get(stack[-1], 0) >= precedence[char]:
+            while stack and stack[-1] != '(' and precedence.get(stack[-1], 0) >= precedence[token]:
                 postfix.append(stack.pop())
-            stack.append(char)
+            stack.append(token)
 
     while stack:
         postfix.append(stack.pop())
     
-    return "".join(postfix)
+    return " ".join(postfix)
 
 
-def evaluate_postfix(postfix):
+def evaluate_postfix(postfix_str):
+    if not postfix_str:
+        return 0
+        
     stack = []
+    tokens = postfix_str.split()
 
-    for char in postfix:
-        if char.isdigit():  # Push numbers onto the stack
-            stack.append(float(char))
-        else:  # Operator: pop two numbers and apply it
+    for token in tokens:
+        if token.replace('.', '', 1).isdigit():
+            stack.append(float(token))
+        else:
+            if len(stack) < 2:
+                return "Error"
             b = stack.pop()
             a = stack.pop()
-            if char == '+': stack.append(a + b)
-            elif char == '-': stack.append(a - b)
-            elif char == '*': stack.append(a * b)
-            elif char == '/': stack.append(a / b)
+            if token == '+': stack.append(a + b)
+            elif token == '-': stack.append(a - b)
+            elif token == '*': stack.append(a * b)
+            elif token == '/': 
+                if b == 0: return "Div by 0"
+                stack.append(a / b)
 
-    return stack.pop()
+    return stack.pop() if stack else 0
 
 #handle button clicks
 def button_click(value):
@@ -75,7 +86,15 @@ def button_click(value):
     elif value == "=":
         expression = exp.get()
         postfix = infix_to_postfix(expression)
-        print(evaluate_postfix(postfix))
+        final_answer = evaluate_postfix(postfix)
+        display_result = tk.Label(root, font=("Arial", 12, "bold"), fg="darkgreen", text=final_answer)
+        display_result.grid(row=6, column=0, columnspan=4, sticky="ne", padx=(0,10), pady=10)
+    elif value == "<-":
+        exp.delete(len(exp.get()) - 1, tk.END)
+    else:
+        if exp.get() == placeholder_text:
+            exp.delete(0,tk.END)
+        exp.insert(tk.END, value)
 
 buttons = [
     ("AC", 1, 0, 10, 5),
@@ -101,7 +120,6 @@ buttons = [
 ]
 
 for text, r, c, px_l, px_r in buttons:
-    # Use lambda with a default argument (t=text) to capture the current button's text correctly
     btn = tk.Button(
         root, 
         text=text, 
